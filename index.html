@@ -333,6 +333,11 @@
 </div>
 
 <script>
+  // ── JSONBin config — fill these in after creating a free bin at jsonbin.io ──
+  const BIN_ID  = 'YOUR_BIN_ID';   // e.g. '664abc123def456'
+  const API_KEY = 'YOUR_API_KEY';  // e.g. '$2a$10$...'
+  const BIN_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
+
   // ── State ──────────────────────────────────────────────
   let sequence = [];
   let playerIndex = 0;
@@ -341,36 +346,51 @@
   let isPlayingSequence = false;
   let personalBest = 0;
   let inputTimer = null;
-  let timerBar = null;
+  let lbCache = [];
 
   const INPUT_TIMEOUT = 1000;
-
   const COLORS = ['green', 'red', 'yellow', 'blue'];
   const FLASH_MS = 400;
   const PAUSE_MS = 200;
 
   // ── Leaderboard helpers ─────────────────────────────────
-  function getLeaderboard() {
-    return JSON.parse(localStorage.getItem('simon_leaderboard') || '[]');
+  async function fetchLeaderboard() {
+    try {
+      const res = await fetch(BIN_URL + '/latest', {
+        headers: { 'X-Master-Key': API_KEY }
+      });
+      if (!res.ok) throw new Error('fetch failed');
+      const data = await res.json();
+      lbCache = data.record.scores || [];
+    } catch {
+      lbCache = JSON.parse(localStorage.getItem('simon_leaderboard') || '[]');
+    }
+    return lbCache;
   }
 
-  function saveScore(name, score) {
-    const lb = getLeaderboard();
-    lb.push({ name, score });
-    lb.sort((a, b) => b.score - a.score);
-    const top10 = lb.slice(0, 10);
-    localStorage.setItem('simon_leaderboard', JSON.stringify(top10));
-    return top10;
+  async function saveScore(name, score) {
+    await fetchLeaderboard();
+    lbCache.push({ name, score });
+    lbCache.sort((a, b) => b.score - a.score);
+    lbCache = lbCache.slice(0, 10);
+    try {
+      await fetch(BIN_URL, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'X-Master-Key': API_KEY },
+        body: JSON.stringify({ scores: lbCache })
+      });
+    } catch {
+      localStorage.setItem('simon_leaderboard', JSON.stringify(lbCache));
+    }
   }
 
   function renderLeaderboard(elementId) {
-    const lb = getLeaderboard();
     const el = document.getElementById(elementId);
-    if (lb.length === 0) {
+    if (lbCache.length === 0) {
       el.innerHTML = '<li class="empty-lb">No scores yet — be the first!</li>';
       return;
     }
-    el.innerHTML = lb.slice(0, 8).map((entry, i) => `
+    el.innerHTML = lbCache.slice(0, 8).map((entry, i) => `
       <li>
         <span class="rank">${i + 1}.</span>
         <span class="lb-name">${i === 0 ? '<span class="crown">👑</span>' : ''}${escapeHtml(entry.name)}</span>
@@ -379,13 +399,17 @@
     `).join('');
   }
 
+  function setLeaderboardLoading(elementId) {
+    document.getElementById(elementId).innerHTML =
+      '<li class="empty-lb">Loading…</li>';
+  }
+
   function escapeHtml(str) {
     return str.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   }
 
   function getPersonalBest(name) {
-    const lb = getLeaderboard();
-    const entries = lb.filter(e => e.name.toLowerCase() === name.toLowerCase());
+    const entries = lbCache.filter(e => e.name.toLowerCase() === name.toLowerCase());
     return entries.length ? Math.max(...entries.map(e => e.score)) : 0;
   }
 
@@ -395,9 +419,11 @@
     document.getElementById(id).classList.add('active');
   }
 
-  function showStart() {
-    renderLeaderboard('start-lb');
+  async function showStart() {
+    setLeaderboardLoading('start-lb');
     showScreen('start-screen');
+    await fetchLeaderboard();
+    renderLeaderboard('start-lb');
   }
 
   // ── Game flow ───────────────────────────────────────────
@@ -484,14 +510,12 @@
     }
   }
 
-  function endGame() {
+  async function endGame() {
     clearInputTimer();
     const score = level - 1;
     const prevBest = getPersonalBest(playerName);
-    saveScore(playerName, score);
 
     document.getElementById('final-score').textContent = score;
-
     const pbMsg = document.getElementById('pb-msg');
     if (score > prevBest) {
       pbMsg.textContent = score > 0 ? '★ New Personal Best!' : '';
@@ -499,8 +523,11 @@
       pbMsg.textContent = prevBest > 0 ? `Your best: ${prevBest}` : '';
     }
 
-    renderLeaderboard('gameover-lb');
+    setLeaderboardLoading('gameover-lb');
     showScreen('gameover-screen');
+
+    await saveScore(playerName, score);
+    renderLeaderboard('gameover-lb');
   }
 
   // ── Input timer ─────────────────────────────────────────
@@ -563,7 +590,8 @@
   }
 
   // ── Init ─────────────────────────────────────────────────
-  renderLeaderboard('start-lb');
+  setLeaderboardLoading('start-lb');
+  fetchLeaderboard().then(() => renderLeaderboard('start-lb'));
 
   // Allow pressing Enter to start
   document.getElementById('player-name').addEventListener('keydown', e => {
