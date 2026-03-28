@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Simon Game</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: #121212;
+      color: #e2e2e2;
+      font-family: 'Segoe UI', sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    /* ── Screens ── */
+    .screen {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      width: 100%;
+      max-width: 480px;
+      padding: 20px;
+    }
+    .screen.active { display: flex; }
+
+    h1 {
+      font-size: 3rem;
+      letter-spacing: 6px;
+      text-transform: uppercase;
+      color: #e2e2e2;
+      text-shadow: 0 0 24px rgba(139,92,246,0.5);
+    }
+
+    h2 {
+      font-size: 1.4rem;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: #9ca3af;
+    }
+
+    input[type="text"] {
+      padding: 12px 20px;
+      font-size: 1rem;
+      border: 2px solid #2e2e3a;
+      border-radius: 8px;
+      background: #1e1e2a;
+      color: #e2e2e2;
+      width: 100%;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    input[type="text"]:focus { border-color: #8b5cf6; }
+    input[type="text"]::placeholder { color: #4b5563; }
+
+    .btn {
+      padding: 12px 32px;
+      font-size: 1rem;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: transform 0.1s, opacity 0.2s;
+      width: 100%;
+    }
+    .btn:active { transform: scale(0.97); }
+
+    .btn-primary {
+      background: #7c3aed;
+      color: #fff;
+      box-shadow: 0 0 16px rgba(124,58,237,0.4);
+    }
+    .btn-primary:hover { background: #6d28d9; opacity: 1; }
+
+    .btn-secondary {
+      background: transparent;
+      color: #9ca3af;
+      border: 2px solid #2e2e3a;
+    }
+    .btn-secondary:hover { border-color: #6d28d9; color: #e2e2e2; }
+
+    /* ── Leaderboard ── */
+    .leaderboard-box {
+      width: 100%;
+      background: #1e1e2a;
+      border: 1px solid #2e2e3a;
+      border-radius: 12px;
+      padding: 16px;
+    }
+
+    .leaderboard-box h3 {
+      text-align: center;
+      letter-spacing: 3px;
+      font-size: 0.9rem;
+      color: #6b7280;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+
+    .leaderboard-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .leaderboard-list li {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 12px;
+      border-radius: 6px;
+      background: #16161f;
+    }
+
+    .leaderboard-list li:first-child { background: #2a1f0e; border-left: 3px solid #f59e0b; }
+    .leaderboard-list li:nth-child(2) { background: #1a1e2a; border-left: 3px solid #6b7280; }
+    .leaderboard-list li:nth-child(3) { background: #1e1a12; border-left: 3px solid #b45309; }
+
+    .rank { font-size: 0.8rem; color: #4b5563; width: 24px; }
+    .lb-name { flex: 1; padding: 0 10px; font-weight: 600; color: #d1d5db; }
+    .lb-score { font-size: 1rem; font-weight: 700; color: #fbbf24; }
+
+    .empty-lb { text-align: center; color: #4b5563; font-size: 0.9rem; padding: 12px 0; }
+
+    /* ── Simon Board ── */
+    #game-screen { gap: 16px; }
+
+    .game-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+    }
+
+    .game-info { text-align: center; }
+    .game-info .label { font-size: 0.7rem; letter-spacing: 2px; color: #4b5563; text-transform: uppercase; }
+    .game-info .value { font-size: 1.6rem; font-weight: 700; color: #e2e2e2; }
+
+    .status-msg {
+      font-size: 0.85rem;
+      letter-spacing: 2px;
+      color: #8b5cf6;
+      text-transform: uppercase;
+      height: 20px;
+    }
+
+    .timer-track {
+      width: 100%;
+      height: 4px;
+      background: #2e2e3a;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    #timer-bar {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #7c3aed, #ec4899);
+      border-radius: 2px;
+    }
+
+    /* Simon pad */
+    .simon-pad {
+      position: relative;
+      width: 320px;
+      height: 320px;
+    }
+
+    .simon-pad .center-circle {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background: #1e1e2a;
+      border: 4px solid #121212;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      color: #4b5563;
+      text-transform: uppercase;
+    }
+
+    .simon-btn {
+      position: absolute;
+      width: 148px;
+      height: 148px;
+      cursor: pointer;
+      transition: filter 0.05s;
+      border: 6px solid #121212;
+      outline: none;
+      filter: brightness(0.65) saturate(0.7);
+    }
+
+    .simon-btn:disabled { cursor: not-allowed; }
+
+    /* positions */
+    .simon-btn[data-color="green"] {
+      top: 0; left: 0;
+      border-radius: 100% 0 0 0;
+      background: #1db954;
+    }
+    .simon-btn[data-color="red"] {
+      top: 0; right: 0;
+      border-radius: 0 100% 0 0;
+      background: #e3342f;
+    }
+    .simon-btn[data-color="yellow"] {
+      bottom: 0; left: 0;
+      border-radius: 0 0 0 100%;
+      background: #f6c90e;
+    }
+    .simon-btn[data-color="blue"] {
+      bottom: 0; right: 0;
+      border-radius: 0 0 100% 0;
+      background: #3b82f6;
+    }
+
+    .simon-btn.lit { filter: brightness(1.8) saturate(1.4); }
+    .simon-btn:not(:disabled):hover { filter: brightness(0.9) saturate(1.1); }
+
+    /* ── Game Over ── */
+    #gameover-screen .score-display {
+      font-size: 5rem;
+      font-weight: 800;
+      line-height: 1;
+    }
+
+    #gameover-screen .score-label {
+      font-size: 0.8rem;
+      letter-spacing: 3px;
+      color: #666;
+      text-transform: uppercase;
+    }
+
+    #gameover-screen .personal-best {
+      font-size: 0.85rem;
+      color: #fbbf24;
+      letter-spacing: 1px;
+    }
+
+    .divider {
+      width: 100%;
+      height: 1px;
+      background: #2e2e3a;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ════════════════ START SCREEN ════════════════ -->
+<div id="start-screen" class="screen active">
+  <h1>Simon</h1>
+  <p style="color:#555; font-size:0.85rem; letter-spacing:1px;">How long can you keep up?</p>
+
+  <input id="player-name" type="text" placeholder="Enter your name" maxlength="20" />
+
+  <button class="btn btn-primary" onclick="startGame()">Start Game</button>
+
+  <div class="divider"></div>
+
+  <div class="leaderboard-box">
+    <h3>Leaderboard</h3>
+    <ul class="leaderboard-list" id="start-lb"></ul>
+  </div>
+</div>
+
+<!-- ════════════════ GAME SCREEN ════════════════ -->
+<div id="game-screen" class="screen">
+  <div class="game-header">
+    <div class="game-info">
+      <div class="label">Level</div>
+      <div class="value" id="level-display">1</div>
+    </div>
+    <div class="game-info">
+      <div class="label">Best</div>
+      <div class="value" id="best-display">0</div>
+    </div>
+  </div>
+
+  <div class="status-msg" id="status-msg">Watch carefully…</div>
+
+  <div class="timer-track">
+    <div id="timer-bar"></div>
+  </div>
+
+  <div class="simon-pad">
+    <button class="simon-btn" data-color="green"  onclick="playerPress('green')"></button>
+    <button class="simon-btn" data-color="red"    onclick="playerPress('red')"></button>
+    <button class="simon-btn" data-color="yellow" onclick="playerPress('yellow')"></button>
+    <button class="simon-btn" data-color="blue"   onclick="playerPress('blue')"></button>
+    <div class="center-circle">Simon</div>
+  </div>
+
+  <button class="btn btn-secondary" onclick="quitGame()">Quit</button>
+</div>
+
+<!-- ════════════════ GAME OVER SCREEN ════════════════ -->
+<div id="gameover-screen" class="screen">
+  <h2>Game Over</h2>
+  <div class="score-display" id="final-score">0</div>
+  <div class="score-label">Level Reached</div>
+  <div class="personal-best" id="pb-msg"></div>
+
+  <div class="divider"></div>
+
+  <div class="leaderboard-box">
+    <h3>Leaderboard</h3>
+    <ul class="leaderboard-list" id="gameover-lb"></ul>
+  </div>
+
+  <button class="btn btn-primary"    onclick="startGame()">Play Again</button>
+  <button class="btn btn-secondary"  onclick="showStart()">Main Menu</button>
+</div>
+
+<script>
+  // ── State ──────────────────────────────────────────────
+  let sequence = [];
+  let playerIndex = 0;
+  let level = 1;
+  let playerName = '';
+  let isPlayingSequence = false;
+  let personalBest = 0;
+  let inputTimer = null;
+  let timerBar = null;
+
+  const INPUT_TIMEOUT = 1000;
+
+  const COLORS = ['green', 'red', 'yellow', 'blue'];
+  const FLASH_MS = 400;
+  const PAUSE_MS = 200;
+
+  // ── Leaderboard helpers ─────────────────────────────────
+  function getLeaderboard() {
+    return JSON.parse(localStorage.getItem('simon_leaderboard') || '[]');
+  }
+
+  function saveScore(name, score) {
+    const lb = getLeaderboard();
+    lb.push({ name, score });
+    lb.sort((a, b) => b.score - a.score);
+    const top10 = lb.slice(0, 10);
+    localStorage.setItem('simon_leaderboard', JSON.stringify(top10));
+    return top10;
+  }
+
+  function renderLeaderboard(elementId) {
+    const lb = getLeaderboard();
+    const el = document.getElementById(elementId);
+    if (lb.length === 0) {
+      el.innerHTML = '<li class="empty-lb">No scores yet — be the first!</li>';
+      return;
+    }
+    el.innerHTML = lb.slice(0, 8).map((entry, i) => `
+      <li>
+        <span class="rank">${i + 1}.</span>
+        <span class="lb-name">${escapeHtml(entry.name)}</span>
+        <span class="lb-score">${entry.score}</span>
+      </li>
+    `).join('');
+  }
+
+  function escapeHtml(str) {
+    return str.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  function getPersonalBest(name) {
+    const lb = getLeaderboard();
+    const entries = lb.filter(e => e.name.toLowerCase() === name.toLowerCase());
+    return entries.length ? Math.max(...entries.map(e => e.score)) : 0;
+  }
+
+  // ── Screen switching ────────────────────────────────────
+  function showScreen(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+  }
+
+  function showStart() {
+    renderLeaderboard('start-lb');
+    showScreen('start-screen');
+  }
+
+  // ── Game flow ───────────────────────────────────────────
+  function startGame() {
+    const nameInput = document.getElementById('player-name');
+    playerName = nameInput.value.trim() || 'Anonymous';
+
+    personalBest = getPersonalBest(playerName);
+    document.getElementById('best-display').textContent = personalBest;
+
+    sequence = [];
+    level = 1;
+    showScreen('game-screen');
+    nextRound();
+  }
+
+  function quitGame() {
+    endGame();
+  }
+
+  function nextRound() {
+    playerIndex = 0;
+    setStatus('Watch carefully…');
+    document.getElementById('level-display').textContent = level;
+    disablePad(true);
+
+    const next = COLORS[Math.floor(Math.random() * COLORS.length)];
+    sequence.push(next);
+
+    setTimeout(() => playSequence(), 600);
+  }
+
+  function playSequence() {
+    isPlayingSequence = true;
+    let i = 0;
+    const speed = Math.max(200, FLASH_MS - (level - 1) * 15);
+    const pause = Math.max(100, PAUSE_MS - (level - 1) * 5);
+
+    function step() {
+      if (i >= sequence.length) {
+        isPlayingSequence = false;
+        disablePad(false);
+        setStatus('Your turn!');
+        startInputTimer();
+        return;
+      }
+      flashButton(sequence[i], speed);
+      i++;
+      setTimeout(step, speed + pause);
+    }
+    step();
+  }
+
+  function flashButton(color, duration) {
+    const btn = document.querySelector(`.simon-btn[data-color="${color}"]`);
+    btn.classList.add('lit');
+    playTone(color);
+    setTimeout(() => btn.classList.remove('lit'), duration);
+  }
+
+  function playerPress(color) {
+    if (isPlayingSequence) return;
+    flashButton(color, 200);
+
+    if (color !== sequence[playerIndex]) {
+      clearInputTimer();
+      endGame();
+      return;
+    }
+
+    playerIndex++;
+    if (playerIndex === sequence.length) {
+      clearInputTimer();
+      level++;
+      if (level > personalBest) {
+        personalBest = level - 1;
+        document.getElementById('best-display').textContent = personalBest;
+      }
+      setStatus('Correct! Next round…');
+      disablePad(true);
+      setTimeout(() => nextRound(), 800);
+    } else {
+      startInputTimer();
+    }
+  }
+
+  function endGame() {
+    clearInputTimer();
+    const score = level - 1;
+    const prevBest = getPersonalBest(playerName);
+    saveScore(playerName, score);
+
+    document.getElementById('final-score').textContent = score;
+
+    const pbMsg = document.getElementById('pb-msg');
+    if (score > prevBest) {
+      pbMsg.textContent = score > 0 ? '★ New Personal Best!' : '';
+    } else {
+      pbMsg.textContent = prevBest > 0 ? `Your best: ${prevBest}` : '';
+    }
+
+    renderLeaderboard('gameover-lb');
+    showScreen('gameover-screen');
+  }
+
+  // ── Input timer ─────────────────────────────────────────
+  function startInputTimer() {
+    clearInputTimer();
+    const bar = document.getElementById('timer-bar');
+    bar.style.transition = 'none';
+    bar.style.width = '100%';
+    // force reflow so the transition restart takes effect
+    bar.getBoundingClientRect();
+    bar.style.transition = `width ${INPUT_TIMEOUT}ms linear`;
+    bar.style.width = '0%';
+
+    inputTimer = setTimeout(() => {
+      setStatus('Too slow!');
+      endGame();
+    }, INPUT_TIMEOUT);
+  }
+
+  function clearInputTimer() {
+    if (inputTimer) { clearTimeout(inputTimer); inputTimer = null; }
+    const bar = document.getElementById('timer-bar');
+    bar.style.transition = 'none';
+    bar.style.width = '0%';
+  }
+
+  // ── Helpers ─────────────────────────────────────────────
+  function setStatus(msg) {
+    document.getElementById('status-msg').textContent = msg;
+  }
+
+  function disablePad(disabled) {
+    document.querySelectorAll('.simon-btn').forEach(b => b.disabled = disabled);
+  }
+
+  // ── Audio ────────────────────────────────────────────────
+  let audioCtx;
+
+  function getAudioCtx() {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    return audioCtx;
+  }
+
+  const TONES = { green: 329.63, red: 261.63, yellow: 415.30, blue: 220.00 };
+
+  function playTone(color) {
+    try {
+      const ctx = getAudioCtx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = 'sine';
+      osc.frequency.value = TONES[color];
+      gain.gain.setValueAtTime(0.3, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.4);
+    } catch (e) { /* audio unavailable */ }
+  }
+
+  // ── Init ─────────────────────────────────────────────────
+  renderLeaderboard('start-lb');
+
+  // Allow pressing Enter to start
+  document.getElementById('player-name').addEventListener('keydown', e => {
+    if (e.key === 'Enter') startGame();
+  });
+</script>
+</body>
+</html>
