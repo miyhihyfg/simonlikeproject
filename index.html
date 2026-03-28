@@ -130,6 +130,7 @@
 
     .rank { font-size: 0.8rem; color: #4b5563; width: 24px; }
     .lb-name { flex: 1; padding: 0 10px; font-weight: 600; color: #d1d5db; }
+    .crown { margin-right: 4px; font-size: 0.85rem; }
     .lb-score { font-size: 1rem; font-weight: 700; color: #fbbf24; }
 
     .empty-lb { text-align: center; color: #4b5563; font-size: 0.9rem; padding: 12px 0; }
@@ -372,7 +373,7 @@
     el.innerHTML = lb.slice(0, 8).map((entry, i) => `
       <li>
         <span class="rank">${i + 1}.</span>
-        <span class="lb-name">${escapeHtml(entry.name)}</span>
+        <span class="lb-name">${i === 0 ? '<span class="crown">👑</span>' : ''}${escapeHtml(entry.name)}</span>
         <span class="lb-score">${entry.score}</span>
       </li>
     `).join('');
