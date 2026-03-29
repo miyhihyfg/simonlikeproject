@@ -568,18 +568,36 @@
 
   // ── Audio ────────────────────────────────────────────────
   let audioCtx;
+  let audioUnlocked = false;
 
   function getAudioCtx() {
     if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     return audioCtx;
   }
 
-  const TONES = { green: 329.63, red: 261.63, yellow: 415.30, blue: 220.00 };
-
-  async function playTone(color) {
+  // iOS requires a silent buffer played synchronously on first touch to unlock audio
+  function unlockAudio() {
+    if (audioUnlocked) return;
     try {
       const ctx = getAudioCtx();
-      if (ctx.state === 'suspended') await ctx.resume();
+      const buf = ctx.createBuffer(1, 1, 22050);
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      src.connect(ctx.destination);
+      src.start(0);
+      ctx.resume();
+      audioUnlocked = true;
+    } catch (e) {}
+  }
+
+  document.addEventListener('touchstart', unlockAudio, { once: true });
+  document.addEventListener('click',      unlockAudio, { once: true });
+
+  const TONES = { green: 329.63, red: 261.63, yellow: 415.30, blue: 220.00 };
+
+  function playTone(color) {
+    try {
+      const ctx = getAudioCtx();
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.connect(gain);
