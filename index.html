@@ -350,7 +350,7 @@
 
   function getInputTimeout() {
     // 5000ms at level 1, 500ms at level 50, logarithmic (drops fast early, flattens late)
-    return Math.max(500, 5000 - (4500 / Math.log(50)) * Math.log(level));
+    return Math.max(500, 4000 - (3500 / Math.log(50)) * Math.log(level));
   }
   const COLORS = ['green', 'red', 'yellow', 'blue'];
   const FLASH_MS = 400;
