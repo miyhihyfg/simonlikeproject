@@ -348,7 +348,10 @@
   let inputTimer = null;
   let lbCache = [];
 
-  const INPUT_TIMEOUT = 1000;
+  function getInputTimeout() {
+    // 5000ms at level 1, 500ms at level 50, linear
+    return Math.max(500, 5000 - (level - 1) * (4500 / 49));
+  }
   const COLORS = ['green', 'red', 'yellow', 'blue'];
   const FLASH_MS = 400;
   const PAUSE_MS = 200;
@@ -533,18 +536,18 @@
   // ── Input timer ─────────────────────────────────────────
   function startInputTimer() {
     clearInputTimer();
+    const timeout = getInputTimeout();
     const bar = document.getElementById('timer-bar');
     bar.style.transition = 'none';
     bar.style.width = '100%';
-    // force reflow so the transition restart takes effect
     bar.getBoundingClientRect();
-    bar.style.transition = `width ${INPUT_TIMEOUT}ms linear`;
+    bar.style.transition = `width ${timeout}ms linear`;
     bar.style.width = '0%';
 
     inputTimer = setTimeout(() => {
       setStatus('Too slow!');
       endGame();
-    }, INPUT_TIMEOUT);
+    }, timeout);
   }
 
   function clearInputTimer() {
